@@ -15,47 +15,14 @@ Tryfeb2/
     │   ├── index.css # Styles
     │   └── main.jsx
     └── package.json
-```
 
 ## Features
 
 - ✨ Modern, gradient-based UI design
-- ✅ Add new todos
-- ✏️ Mark todos as complete/incomplete
-- 🗑️ Delete todos
-- 💾 In-memory storage (no database required)
-- 🎨 Smooth animations and transitions
-- 📱 Responsive design
 
-## Setup & Run
-
-### Backend
-
-```bash
-cd backend
-npm install
-npm start
-```
-
-The backend server will run on `http://localhost:5000`
-
-### Frontend
-
-```bash
 cd frontend
 npm install
 npm run dev
-```
-
-The frontend will run on `http://localhost:5173`
-
-## API Endpoints
-
-- `GET /api/todos` - Get all todos
-- `GET /api/todos/:id` - Get a single todo
-- `POST /api/todos` - Create a new todo
-- `PUT /api/todos/:id` - Update a todo
-- `DELETE /api/todos/:id` - Delete a todo
 
 ## Tech Stack
 
