@@ -1,68 +1,99 @@
 import { useState, useEffect } from 'react';
 import './App.css';
 
-const API_URL = 'http://localhost:5000/api/todos';
+// Support VITE_API_URL environment variable for production builds
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/todos';
 
 function App() {
     const [todos, setTodos] = useState([]);
-    const [newTodoText, setNewTodoText] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Fetch todos on mount
+    // Initial load: Try API first, fallback to localStorage
     useEffect(() => {
-        fetchTodos();
+        const loadInitialData = async () => {
+            try {
+                const response = await fetch(API_URL);
+                if (response.ok) {
+                    const data = await response.json();
+                    setTodos(data);
+                    // Save to local as backup
+                    localStorage.setItem('todos', JSON.stringify(data));
+                } else {
+                    throw new Error('API not available');
+                }
+            } catch (error) {
+                console.log('API not reachable, using localStorage fallback');
+                const saved = localStorage.getItem('todos');
+                if (saved) {
+                    setTodos(JSON.parse(saved));
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadInitialData();
     }, []);
 
-    const fetchTodos = async () => {
-        try {
-            const response = await fetch(API_URL);
-            const data = await response.json();
-            setTodos(data);
-        } catch (error) {
-            console.error('Error fetching todos:', error);
-        } finally {
-            setLoading(false);
-        }
+    // Helper to persist data to localStorage
+    const persistToLocal = (newTodos) => {
+        setTodos(newTodos);
+        localStorage.setItem('todos', JSON.stringify(newTodos));
     };
 
-    const addTodo = async (e) => {
-        e.preventDefault();
-        if (!newTodoText.trim()) return;
+    const addTodo = async (text) => {
+        if (!text.trim()) return;
 
+        const newTodo = {
+            id: Date.now(),
+            text,
+            completed: false
+        };
+
+        // UI Update (Optimistic)
+        const updatedTodos = [...todos, newTodo];
+        persistToLocal(updatedTodos);
+
+        // API Sync (Background)
         try {
-            const response = await fetch(API_URL, {
+            await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: newTodoText })
+                body: JSON.stringify(newTodo)
             });
-            const newTodo = await response.json();
-            setTodos([...todos, newTodo]);
-            setNewTodoText('');
         } catch (error) {
-            console.error('Error adding todo:', error);
+            console.warn('Background sync failed:', error);
         }
     };
 
-    const toggleTodo = async (id, completed) => {
+    const toggleTodo = async (id) => {
+        const updatedTodos = todos.map(todo =>
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+        );
+        persistToLocal(updatedTodos);
+
+        // API Sync
+        const todo = updatedTodos.find(t => t.id === id);
         try {
-            const response = await fetch(`${API_URL}/${id}`, {
+            await fetch(`${API_URL}/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ completed: !completed })
+                body: JSON.stringify({ completed: todo.completed })
             });
-            const updatedTodo = await response.json();
-            setTodos(todos.map(todo => todo.id === id ? updatedTodo : todo));
         } catch (error) {
-            console.error('Error updating todo:', error);
+            console.warn('Background sync failed:', error);
         }
     };
 
     const deleteTodo = async (id) => {
+        const updatedTodos = todos.filter(todo => todo.id !== id);
+        persistToLocal(updatedTodos);
+
+        // API Sync
         try {
             await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
-            setTodos(todos.filter(todo => todo.id !== id));
         } catch (error) {
-            console.error('Error deleting todo:', error);
+            console.warn('Background sync failed:', error);
         }
     };
 
@@ -71,7 +102,7 @@ function App() {
             <div className="app">
                 <div className="container">
                     <h1>✨ Todo App</h1>
-                    <p style={{ textAlign: 'center' }}>Loading...</p>
+                    <p style={{ textAlign: 'center' }}>Initializing...</p>
                 </div>
             </div>
         );
@@ -82,50 +113,77 @@ function App() {
             <div className="container">
                 <h1>✨ Todo App</h1>
 
-                <form onSubmit={addTodo} className="add-todo">
-                    <input
-                        type="text"
-                        className="todo-input"
-                        placeholder="What needs to be done?"
-                        value={newTodoText}
-                        onChange={(e) => setNewTodoText(e.target.value)}
-                    />
-                    <button type="submit" className="btn btn-primary">
-                        Add Todo
-                    </button>
-                </form>
+                <TodoForm onAdd={addTodo} />
 
                 {todos.length === 0 ? (
-                    <div className="empty-state">
-                        <div className="empty-state-icon">📝</div>
-                        <p className="empty-state-text">No todos yet. Add one above!</p>
-                    </div>
+                    <EmptyState />
                 ) : (
                     <div className="todos-list">
                         {todos.map((todo) => (
-                            <div key={todo.id} className="todo-item">
-                                <input
-                                    type="checkbox"
-                                    className="checkbox"
-                                    checked={todo.completed}
-                                    onChange={() => toggleTodo(todo.id, todo.completed)}
-                                />
-                                <span className={`todo-text ${todo.completed ? 'completed' : ''}`}>
-                                    {todo.text}
-                                </span>
-                                <div className="todo-actions">
-                                    <button
-                                        className="btn btn-danger"
-                                        onClick={() => deleteTodo(todo.id)}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
+                            <TodoItem
+                                key={todo.id}
+                                todo={todo}
+                                onToggle={toggleTodo}
+                                onDelete={deleteTodo}
+                            />
                         ))}
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+// Sub-components for cleaner structure
+function TodoForm({ onAdd }) {
+    const [text, setText] = useState('');
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        onAdd(text);
+        setText('');
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="add-todo">
+            <input
+                type="text"
+                className="todo-input"
+                placeholder="What needs to be done?"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+            />
+            <button type="submit" className="btn btn-primary">Add Todo</button>
+        </form>
+    );
+}
+
+function TodoItem({ todo, onToggle, onDelete }) {
+    return (
+        <div className="todo-item">
+            <input
+                type="checkbox"
+                className="checkbox"
+                checked={todo.completed}
+                onChange={() => onToggle(todo.id)}
+            />
+            <span className={`todo-text ${todo.completed ? 'completed' : ''}`}>
+                {todo.text}
+            </span>
+            <div className="todo-actions">
+                <button className="btn btn-danger" onClick={() => onDelete(todo.id)}>
+                    Delete
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState() {
+    return (
+        <div className="empty-state">
+            <div className="empty-state-icon">📝</div>
+            <p className="empty-state-text">No todos yet. Add one above!</p>
         </div>
     );
 }

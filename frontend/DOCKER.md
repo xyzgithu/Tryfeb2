@@ -3,7 +3,7 @@
 ## Build the Docker Image
 
 cd frontend
-docker build -t todo-frontend .
+docker build --build-arg VITE_API_URL=http://your-api.com/api/todos -t todo-frontend .
 
 ## Run the Container
 

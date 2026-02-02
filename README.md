@@ -1,36 +1,11 @@
-# Simple MERN Todo App
 
-A simple Todo application built with the MERN stack (without MongoDB - using in-memory storage).
+Visit http://localhost:3000 to see your app!
 
-## Project Structure
+### Building with a Custom API
 
-```
-Tryfeb2/
-├── backend/          # Express server with in-memory storage
-│   ├── server.js    # Main backend file with REST API
-│   └── package.json
-└── frontend/         # React app built with Vite
-    ├── src/
-    │   ├── App.jsx  # Main application component
-    │   ├── index.css # Styles
-    │   └── main.jsx
-    └── package.json
+docker build --build-arg VITE_API_URL=http://your-api.com/api/todos -t todo-frontend .
 
-## Features
-
-- ✨ Modern, gradient-based UI design
-
-cd frontend
-npm install
-npm run dev
-
-## Tech Stack
-
-- **Frontend**: React 18, Vite
-- **Backend**: Node.js, Express
-- **Storage**: In-memory (array-based)
-- **Styling**: Custom CSS with gradients and animations
-
-## Note
-
-Since this app uses in-memory storage, all todos will be reset when the server restarts.
+## 🛠 Tech Stack
+- **Frontend**: React 19, Vite
+- **Styling**: Vanilla CSS (Custom Design System)
+- **Deployment**: Nginx, Docker
