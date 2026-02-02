@@ -9,3 +9,5 @@ docker build --build-arg VITE_API_URL=http://your-api.com/api/todos -t todo-fron
 - **Frontend**: React 19, Vite
 - **Styling**: Vanilla CSS (Custom Design System)
 - **Deployment**: Nginx, Docker
+
+haha
